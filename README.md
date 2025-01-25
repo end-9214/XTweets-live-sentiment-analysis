@@ -1,69 +1,49 @@
-# XTweets Live Sentiment Analysis 🔍
+# XTweets Live Sentiment Analysis
 
-[![GitHub stars](https://img.shields.io/github/stars/end-9214/XTweets-live-sentiment-analysis)](https://github.com/end-9214/XTweets-live-sentiment-analysis/stargazers)
-[![Python Version](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
+Real-time Twitter sentiment analysis using CrewAI agents and Google Gemini.
 
-Real-time Twitter sentiment analysis system using CrewAI agents powered by Google Gemini. Analyzes latest tweets from popular accounts and provides interactive insights.
+**Repo**: [github.com/end-9214/XTweets-live-sentiment-analysis](https://github.com/end-9214/XTweets-live-sentiment-analysis)
 
-GitHub Repository: [https://github.com/end-9214/XTweets-live-sentiment-analysis](https://github.com/end-9214/XTweets-live-sentiment-analysis)
+## Features
+- Scrapes 5 latest tweets from 5 users
+- AI-powered sentiment analysis
+- Interactive chat interface
+- JSON data storage
 
-## 🌟 Features
+## Quick Start
 
-- Live Twitter data scraping for 5 popular accounts
-- AI-powered sentiment classification (Positive/Neutral/Negative)
-- Interactive terminal interface
-- JSON data persistence
-- Rate-limited API handling
-
-## 🚀 Getting Started
-
-### Prerequisites
-- Python 3.11+
-- Google Gemini API key
-
-### Installation
+1. **Install**:
 ```bash
-# Clone repository
 git clone https://github.com/end-9214/XTweets-live-sentiment-analysis.git
 cd XTweets-live-sentiment-analysis
-
-# Install dependencies
 pip install google-generativeai crewai ntscraper
-
-# Configure API key (edit sentiment_analyzer.py)
-nano sentiment_analyzer.py
-# Replace "your-api-key-here" with your Gemini API key
 ```
 
-## 🤖 CrewAI Agent Architecture
+2. **Configure**:
+- Get Gemini API key from [AI Studio](https://aistudio.google.com/)
+- Replace `your-api-key-here` in `sentiment_analyzer.py`
 
-### Agent Workflow
-
+3. **Run**:
 ```bash
-    sequenceDiagram
-    participant User
-    participant DataCollector
-    participant SentimentAnalyzer
-    participant Gemini
-    
-    User->>DataCollector: Trigger analysis
-    DataCollector->>Twitter: Scrape tweets
-    Twitter-->>DataCollector: Raw tweets
-    DataCollector->>SentimentAnalyzer: Pass data
-    SentimentAnalyzer->>Gemini: API request
-    Gemini-->>SentimentAnalyzer: Sentiment labels
-    SentimentAnalyzer->>User: Display results
-    ```
-
-## X Data Collector Agent
-### Key Configuration:
-```python
-    Agent(
-    name="X Data Collector",
-    role="Twitter data scraping specialist",
-    goal="Collect latest 5 tweets from 5 target accounts",
-    backstory="Expert in social media data harvesting",
-    llm=gemini_llm,
-    verbose=True
-)
+python sentiment_analyzer.py
 ```
+
+## Usage
+- Default users analyzed: 
+  `@elonmusk, @BarackObama, @BillGates, @nytimes, @CNN`
+- Chat interface appears after analysis:
+  ```bash
+  Which user's sentiments? > elonmusk
+  --- Latest sentiments for @elonmusk ---
+  1. POSITIVE: Launching new SpaceX project...
+  2. NEUTRAL: Reminder about shareholder meeting...
+  ```
+
+## Files
+- `sentiment_analyzer.py`: Main script
+- `tweets_data.json`: Raw tweet storage
+- `sentiments.json`: Analysis results
+
+## Requirements
+- Python 3.11+
+- Valid Gemini API key
