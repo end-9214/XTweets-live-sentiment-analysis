@@ -153,4 +153,3 @@ Contribution areas:
 - Extended error handling
 
 PRs welcome! Please open issues for discussion.
-```
