@@ -3,23 +3,25 @@
 [![GitHub stars](https://img.shields.io/github/stars/end-9214/XTweets-live-sentiment-analysis)](https://github.com/end-9214/XTweets-live-sentiment-analysis/stargazers)
 [![Python Version](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
 
-Real-time Twitter sentiment analysis system using CrewAI agents powered by Google Gemini. Analyzes latest tweets from popular accounts and provides interactive insights.
+Automated Twitter sentiment analysis pipeline using CrewAI agents powered by Google Gemini. Analyzes recent tweets from specified accounts and generates sentiment reports.
 
 GitHub Repository: [https://github.com/end-9214/XTweets-live-sentiment-analysis](https://github.com/end-9214/XTweets-live-sentiment-analysis)
 
 ## 🌟 Features
 
-- Live Twitter data scraping for 5 popular accounts
-- AI-powered sentiment classification (Positive/Neutral/Negative)
-- Interactive terminal interface
+- Twitter API integration using tweepy
+- Multi-agent CrewAI architecture
+- Google Gemini-powered sentiment analysis
 - JSON data persistence
-- Rate-limited API handling
+- Error handling for API limitations
+- Modular tool-based design
 
 ## 🚀 Getting Started
 
 ### Prerequisites
 - Python 3.11+
 - Google Gemini API key
+- Twitter API credentials (Consumer Key/Secret, Access Token/Secret)
 
 ### Installation
 ```bash
@@ -28,11 +30,14 @@ git clone https://github.com/end-9214/XTweets-live-sentiment-analysis.git
 cd XTweets-live-sentiment-analysis
 
 # Install dependencies
-pip install google-generativeai crewai ntscraper
+pip install python-dotenv crewai google-generativeai tweepy
 
-# Configure API key (edit sentiment_analyzer.py)
-nano sentiment_analyzer.py
-# Replace "your-api-key-here" with your Gemini API key
+# Configure environment variables (create .env file)
+echo "GEMINI_API_KEY=your_gemini_key_here" > .env
+echo "TWITTER_CONSUMER_KEY=your_twitter_key" >> .env
+echo "TWITTER_CONSUMER_SECRET=your_twitter_secret" >> .env
+echo "TWITTER_ACCESS_TOKEN=your_access_token" >> .env
+echo "TWITTER_ACCESS_TOKEN_SECRET=your_token_secret" >> .env
 ```
 
 ## 🤖 CrewAI Agent Architecture
@@ -41,68 +46,73 @@ nano sentiment_analyzer.py
 ```mermaid
 sequenceDiagram
     participant User
-    participant DataCollector
-    participant SentimentAnalyzer
-    participant Gemini
+    participant ScraperAgent
+    participant AnalysisAgent
+    participant TwitterAPI
+    participant GeminiAPI
     
-    User->>DataCollector: Trigger analysis
-    DataCollector->>Twitter: Scrape tweets
-    Twitter-->>DataCollector: Raw tweets
-    DataCollector->>SentimentAnalyzer: Pass data
-    SentimentAnalyzer->>Gemini: API request
-    Gemini-->>SentimentAnalyzer: Sentiment labels
-    SentimentAnalyzer->>User: Display results
+    User->>ScraperAgent: Initiate workflow
+    ScraperAgent->>TwitterAPI: Request recent tweets
+    TwitterAPI-->>ScraperAgent: Return tweet data
+    ScraperAgent->>AnalysisAgent: Pass tweets.json
+    AnalysisAgent->>GeminiAPI: Sentiment analysis request
+    GeminiAPI-->>AnalysisAgent: Return sentiment labels
+    AnalysisAgent->>User: Generate sentiments.json
 ```
 
-### X Data Collector Agent
-**Key Configuration:**
+### Social Media Scraper Agent
+**Configuration:**
 ```python
 Agent(
-    name="X Data Collector",
-    role="Twitter data scraping specialist",
-    goal="Collect latest 5 tweets from 5 target accounts",
-    backstory="Expert in social media data harvesting",
-    llm=gemini_llm,
+    role='Social Media Scraper',
+    goal='Collect recent tweets',
+    backstory='Expert in data collection',
+    tools=[twitter_scraper],
     verbose=True
 )
 ```
-**Functions:**
-- Uses ntscraper for Twitter data collection
-- Implements error handling for failed requests
-- Maintains data structure consistency
-- Ensures recent tweet freshness
+**Capabilities:**
+- Collects last 5 tweets from specified handles
+- Handles Twitter API rate limits
+- Stores raw data in tweets.json
+- Error handling for invalid accounts
 
-### Sentiment Analyzer Agent
-**Key Configuration:**
+### Sentiment Analyst Agent
+**Configuration:**
 ```python
 Agent(
-    name="Sentiment Analyzer",
-    role="AI sentiment classification engine",
-    goal="Accurate real-time sentiment analysis",
-    backstory="Advanced NLP model specialist",
-    llm=gemini_llm,
+    role='Sentiment Analyst',
+    goal='Analyze sentiment',
+    backstory='NLP specialist',
+    tools=[sentiment_analyzer],
     verbose=True
 )
 ```
-**Analysis Workflow:**
-1. Receives raw tweets from Data Collector
-2. Processes through Google Gemini API
-3. Implements 1.5s delay between requests
-4. Formats results for user interaction
-5. Handles API errors gracefully
+**Analysis Process:**
+1. Reads raw tweets from tweets.json
+2. Uses Gemini Pro for sentiment classification
+3. Appends sentiment labels to tweet data
+4. Stores results in sentiments.json
+5. Handles API errors and retries
 
-## 📊 Sample Output
+## 📊 Sample Output Structure
 
 ```json
 // sentiments.json
 {
   "elonmusk": [
     {
-      "text": "Exciting new AI developments coming soon!",
+      "id": "123456789",
+      "date": "2024-03-15T12:34:56",
+      "content": "Exciting product launch next week!",
       "sentiment": "positive"
-    },
+    }
+  ],
+  "BillGates": [
     {
-      "text": "Reminder: Tesla earnings call tomorrow",
+      "id": "987654321",
+      "date": "2024-03-15T11:11:11",
+      "content": "Climate change report findings...",
       "sentiment": "neutral"
     }
   ]
@@ -112,41 +122,35 @@ Agent(
 ## 🛠️ Usage
 
 ```bash
-python sentiment_analyzer.py
+python main_script.py
 
-# Follow terminal prompts to:
-# 1. Collect fresh tweets
-# 2. Analyze sentiments
-# 3. Interactive query mode
-```
-
-**Chat Interface Example:**
-```bash
-Which user's sentiments? > nytimes
-
---- Latest sentiments for @nytimes ---
-1. NEUTRAL: Breaking: International climate agreement reached...
-2. NEGATIVE: Report shows increase in global poverty rates...
+# Output files will be created:
+# - tweets.json (raw tweet data)
+# - sentiments.json (analysis results)
 ```
 
 ## 📂 Repository Structure
 ```
-├── sentiment_analyzer.py     # Main application
-├── tweets_data.json          # Raw tweet storage
-├── sentiments.json           # Analysis results
-├── requirements.txt          # Dependency list
+├── main_script.py            # Core CrewAI workflow
+├── tweets.json               # Raw tweet storage
+├── sentiments.json           # Analyzed results
+├── .env.example              # Environment template
+├── requirements.txt          # Dependencies
 └── README.md                 # Documentation
 ```
 
-## 📈 Performance Notes
-
-- Scrapes 25 tweets (5 users × 5 tweets) in ~30 seconds
-- Processes sentiments in ~45 seconds (with API delays)
-- Stores results in human-readable JSON format
+## ⚡ Performance
+- Typical runtime: 1-2 minutes (25 tweets)
+- JSON data structure for easy integration
+- Modular architecture for feature additions
 
 ## 🤝 Contributing
 
-PRs welcome! Please open issues for:
-- Additional platform support
-- Enhanced visualization features
-- Improved error handling
+Contribution areas:
+- Enhanced visualization modules
+- Additional platform integrations
+- Performance optimizations
+- Extended error handling
+
+PRs welcome! Please open issues for discussion.
+```
