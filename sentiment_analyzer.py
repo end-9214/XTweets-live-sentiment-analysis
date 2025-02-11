@@ -4,96 +4,135 @@ from crewai import Agent, Task, Crew, LLM
 from crewai.tools import tool
 import json
 from google.generativeai import configure
-import tweepy
+from ntscraper import Nitter
+import datetime
 
+# Load environment variables
 load_dotenv()
 configure(api_key=os.getenv('GEMINI_API_KEY'))
 
+# Initialize LLM
 llm = LLM(model="gemini/gemini-pro")
 
-@tool("Twitter Scraper Tool")
-def twitter_scraper(usernames: list) -> str:
-    """Scrapes recent 5 tweets from specified Twitter handles using tweepy.
+@tool("Tweet Scraper Tool")
+def tweet_scraper(usernames: list) -> str:
+    """Scrapes recent tweets from specified handles using Nitter.
        Returns success or error message.
     """
-    consumer_key = os.getenv("TWITTER_CONSUMER_KEY")
-    consumer_secret = os.getenv("TWITTER_CONSUMER_SECRET")
-    access_token = os.getenv("TWITTER_ACCESS_TOKEN")
-    access_token_secret = os.getenv("TWITTER_ACCESS_TOKEN_SECRET")
-
-    if not all([consumer_key, consumer_secret, access_token, access_token_secret]):
-        return "Error: Twitter API keys are missing. Set environment variables."
-
-    auth = tweepy.OAuthHandler(consumer_key, consumer_secret)
-    auth.set_access_token(access_token, access_token_secret)
-    api = tweepy.API(auth)
-
+    scraper = Nitter()
     tweets_data = {}
+    errors = []
+    
     for username in usernames:
         try:
-            user = api.get_user(screen_name=username)
-            tweets = api.user_timeline(user_id=user.id, count=5, tweet_mode="extended")
+            # Get tweets using ntscraper
+            tweets = scraper.get_tweets(username, mode='user', number=5)
+            
+            if not tweets['tweets']:
+                tweets_data[username] = []
+                continue
+                
             tweets_list = []
-            for tweet in tweets:
+            for tweet in tweets['tweets']:
+                # Convert tweet timestamp to ISO format
+                tweet_date = datetime.datetime.strptime(
+                    tweet['date'], 
+                    '%b %d, %Y · %I:%M %p UTC'
+                ).isoformat()
+                
                 tweet_data = {
-                    "id": str(tweet.id),
-                    "date": tweet.created_at.isoformat(),
-                    "content": tweet.full_text,
-                    "url": f"https://twitter.com/{username}/status/{tweet.id}",
-                    "retweet_count": tweet.retweet_count,
-                    "favorite_count": tweet.favorite_count
+                    "id": tweet['link'].split('/')[-1],
+                    "date": tweet_date,
+                    "content": tweet['text'],
+                    "url": tweet['link'],
+                    "retweet_count": tweet.get('retweets', 0),
+                    "favorite_count": tweet.get('likes', 0)
                 }
                 tweets_list.append(tweet_data)
             tweets_data[username] = tweets_list
-        except tweepy.TweepyException as e:  
-            return f"Error scraping @{username}: {e}"
+            
         except Exception as e:
-            return f"An unexpected error occurred: {e}"
+            errors.append(f"Error scraping @{username}: {str(e)}")
 
-    with open('tweets.json', 'w', encoding='utf-8') as f:
+    # Save tweets to a JSON file
+    output_file = 'tweets.json'
+    with open(output_file, 'w', encoding='utf-8') as f:
         json.dump(tweets_data, f, indent=4, ensure_ascii=False)
 
-    return "Tweets scraped and saved successfully"
+    if not any(tweets_data.values()):
+        return "Error: No tweets were retrieved. Check usernames and try again."
+        
+    if errors:
+        return f"Partial success. Tweets saved to {output_file}. Errors: {', '.join(errors)}"
+    return f"Success: Tweets saved to {output_file}"
 
 @tool("Sentiment Analysis Tool")
 def sentiment_analyzer(input_file: str) -> str:
-    """Analyzes tweet sentiments using Gemini AI.
-       Reads tweet data from a JSON file, performs sentiment analysis,
-       and saves the results (including original tweet data and sentiment)
-       to a new JSON file. Returns success message.
-    """
+    """Analyzes tweet sentiments using Gemini AI."""
     try:
+        # Read tweets file
         with open(input_file, 'r', encoding='utf-8') as f:
             tweets_data = json.load(f)
+            
+        if not tweets_data:
+            return "Error: No tweet data found in the input file."
+
+        results = {}
+        valid_sentiments = {"positive", "negative", "neutral"}
+        
+        for username, tweets in tweets_data.items():
+            if not tweets:  # Skip empty tweet lists
+                continue
+                
+            user_results = []
+            for tweet in tweets:
+                try:
+                    prompt = (
+                        "Analyze the sentiment of this tweet. "
+                        "Respond ONLY with one word: positive, negative, or neutral.\n\n"
+                        f"Tweet: {tweet['content']}"
+                    )
+                    
+                    response = llm.generate_content(prompt)
+                    sentiment = response.strip().lower()
+                    
+                    if sentiment not in valid_sentiments:
+                        print(f"Warning: Invalid sentiment '{sentiment}' for tweet {tweet['id']}")
+                        sentiment = "neutral"
+                        
+                    tweet_result = tweet.copy()
+                    tweet_result['sentiment'] = sentiment
+                    user_results.append(tweet_result)
+                    
+                except Exception as e:
+                    print(f"Error analyzing tweet {tweet['id']}: {str(e)}")
+                    tweet_result = tweet.copy()
+                    tweet_result['sentiment'] = "neutral"
+                    tweet_result['error'] = str(e)
+                    user_results.append(tweet_result)
+                    
+            results[username] = user_results
+
+        # Save results
+        output_file = 'sentiments.json'
+        with open(output_file, 'w', encoding='utf-8') as f:
+            json.dump(results, f, indent=4, ensure_ascii=False)
+
+        return f"Success: Sentiment analysis saved to {output_file}"
+        
     except FileNotFoundError:
-        return f"Error: Input file '{input_file}' not found. Make sure the Twitter scraper tool has run."
+        return f"Error: Input file '{input_file}' not found"
     except json.JSONDecodeError:
-        return f"Error: Invalid JSON format in '{input_file}'. Check the output of the Twitter scraper."
+        return f"Error: Invalid JSON format in '{input_file}'"
     except Exception as e:
-        return f"An unexpected error occurred while reading the file: {e}"
+        return f"Error: {str(e)}"
 
-    results = {}
-    for username, tweets in tweets_data.items():
-        user_results = []
-        for tweet in tweets:
-            response = llm.generate_content(
-                f"Analyze sentiment of this tweet. Respond ONLY with: positive, negative, or neutral. Tweet: {tweet['content']}"
-            )
-            sentiment = response.strip().lower()
-            tweet['sentiment'] = sentiment
-            user_results.append(tweet)
-        results[username] = user_results
-
-    with open('sentiments.json', 'w', encoding='utf-8') as f:
-        json.dump(results, f, indent=4, ensure_ascii=False)
-
-    return "Sentiment analysis completed and saved"
-
+# Define Agents
 twitter_agent = Agent(
     role='Social Media Scraper',
     goal='Collect recent tweets',
     backstory='Expert in data collection',
-    tools=[twitter_scraper],
+    tools=[tweet_scraper],
     llm=llm,
     verbose=True
 )
@@ -107,25 +146,32 @@ analysis_agent = Agent(
     verbose=True
 )
 
+# Define Tasks
 scrape_task = Task(
-    description='Gather last 5 tweets from elonmusk, BillGates, sundarpichai',
-    agent=twitter_agent,
-    expected_output='JSON file containing recent tweets (tweets.json)'
+    description="Gather last 5 tweets from elonmusk, BillGates, and sundarpichai",
+    expected_output="JSON file containing scraped tweets (tweets.json)",
+    agent=twitter_agent
 )
 
 analyze_task = Task(
-    description='Perform sentiment analysis',
+    description='Analyze sentiments in tweets.json',
+    expected_output="JSON file containing sentiment analysis results (sentiments.json)",
     agent=analysis_agent,
-    expected_output='JSON file with sentiment scores (sentiments.json)',
     context=[scrape_task]
 )
 
+# Define Crew
 social_media_crew = Crew(
     agents=[twitter_agent, analysis_agent],
     tasks=[scrape_task, analyze_task],
     verbose=True
 )
 
-result = social_media_crew.kickoff()
-
-print(f"Workflow completed. Result: {result}")
+if __name__ == "__main__":
+    try:
+        result = social_media_crew.kickoff()
+        print(f"Workflow completed. Result: {result}")
+    except KeyboardInterrupt:
+        print("\nOperation cancelled by user")
+    except Exception as e:
+        print(f"Error during execution: {str(e)}")
