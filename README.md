@@ -3,17 +3,17 @@
 [![GitHub stars](https://img.shields.io/github/stars/end-9214/XTweets-live-sentiment-analysis)](https://github.com/end-9214/XTweets-live-sentiment-analysis/stargazers)
 [![Python Version](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
 
-Automated Twitter sentiment analysis pipeline using CrewAI agents powered by Google Gemini. Analyzes recent tweets from specified accounts and generates sentiment reports.
+Automated Twitter sentiment analysis pipeline using CrewAI agents powered by Google Gemini. Analyzes recent tweets from specified accounts using Nitter and generates sentiment reports.
 
 GitHub Repository: [https://github.com/end-9214/XTweets-live-sentiment-analysis](https://github.com/end-9214/XTweets-live-sentiment-analysis)
 
 ## 🌟 Features
 
-- Twitter API integration using tweepy
+- Nitter-based tweet scraping
 - Multi-agent CrewAI architecture
 - Google Gemini-powered sentiment analysis
 - JSON data persistence
-- Error handling for API limitations
+- Error handling for scraping issues
 - Modular tool-based design
 
 ## 🚀 Getting Started
@@ -21,7 +21,6 @@ GitHub Repository: [https://github.com/end-9214/XTweets-live-sentiment-analysis]
 ### Prerequisites
 - Python 3.11+
 - Google Gemini API key
-- Twitter API credentials (Consumer Key/Secret, Access Token/Secret)
 
 ### Installation
 ```bash
@@ -30,14 +29,10 @@ git clone https://github.com/end-9214/XTweets-live-sentiment-analysis.git
 cd XTweets-live-sentiment-analysis
 
 # Install dependencies
-pip install python-dotenv crewai google-generativeai tweepy
+pip install python-dotenv crewai google-generativeai ntscraper
 
 # Configure environment variables (create .env file)
 echo "GEMINI_API_KEY=your_gemini_key_here" > .env
-echo "TWITTER_CONSUMER_KEY=your_twitter_key" >> .env
-echo "TWITTER_CONSUMER_SECRET=your_twitter_secret" >> .env
-echo "TWITTER_ACCESS_TOKEN=your_access_token" >> .env
-echo "TWITTER_ACCESS_TOKEN_SECRET=your_token_secret" >> .env
 ```
 
 ## 🤖 CrewAI Agent Architecture
@@ -48,12 +43,12 @@ sequenceDiagram
     participant User
     participant ScraperAgent
     participant AnalysisAgent
-    participant TwitterAPI
+    participant Nitter
     participant GeminiAPI
     
     User->>ScraperAgent: Initiate workflow
-    ScraperAgent->>TwitterAPI: Request recent tweets
-    TwitterAPI-->>ScraperAgent: Return tweet data
+    ScraperAgent->>Nitter: Request recent tweets
+    Nitter-->>ScraperAgent: Return tweet data
     ScraperAgent->>AnalysisAgent: Pass tweets.json
     AnalysisAgent->>GeminiAPI: Sentiment analysis request
     GeminiAPI-->>AnalysisAgent: Return sentiment labels
@@ -67,13 +62,13 @@ Agent(
     role='Social Media Scraper',
     goal='Collect recent tweets',
     backstory='Expert in data collection',
-    tools=[twitter_scraper],
+    tools=[tweet_scraper],
     verbose=True
 )
 ```
 **Capabilities:**
 - Collects last 5 tweets from specified handles
-- Handles Twitter API rate limits
+- Uses Nitter for scraping
 - Stores raw data in tweets.json
 - Error handling for invalid accounts
 
@@ -93,7 +88,7 @@ Agent(
 2. Uses Gemini Pro for sentiment classification
 3. Appends sentiment labels to tweet data
 4. Stores results in sentiments.json
-5. Handles API errors and retries
+5. Handles API errors gracefully
 
 ## 📊 Sample Output Structure
 
@@ -135,12 +130,11 @@ python main_script.py
 ├── tweets.json               # Raw tweet storage
 ├── sentiments.json           # Analyzed results
 ├── .env.example              # Environment template
-├── requirements.txt          # Dependencies
 └── README.md                 # Documentation
 ```
 
 ## ⚡ Performance
-- Typical runtime: 1-2 minutes (25 tweets)
+- Typical runtime: 1-2 minutes (15 tweets across 3 accounts)
 - JSON data structure for easy integration
 - Modular architecture for feature additions
 
